@@ -1,0 +1,30 @@
+# Ignore Git
+.git
+.gitignore
+
+# Ignore Docker files
+.dockerignore
+Dockerfile
+docker-compose.yml
+.env
+
+# OS / Editor files
+*.swp
+*.swo
+*.bak
+*.tmp
+*.log
+*.DS_Store
+Thumbs.db
+
+# IDE config
+.vscode
+.idea
+
+# Node / Python / Java caches (if any)
+node_modules
+__pycache__
+*.class
+target
+build
+out
