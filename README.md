@@ -162,3 +162,32 @@ B: Easy to update
 C: Safe practice for dev systems
 
 D: For production → use Jenkins Credentials Plugin (advanced)
+
+#### Agent container log: sh: 1: nc: not found
+Problem:
+
+Agent container logs showed: sh: 1: nc: not found
+
+Root Cause:
+
+The default jenkins/inbound-agent image does not come with netcat (nc), which is used in the entrypoint wait-loop to check when the Jenkins master is ready.
+
+Without nc, the wait-loop fails and the agent keeps failing to connect.
+
+We created a small Dockerfile.agent to install nc:
+
+Dockerfile.agent
+
+# Dockerfile.agent
+FROM jenkins/inbound-agent:latest-jdk17
+
+USER root
+
+# Install netcat-openbsd (because "netcat" fails now in Debian images)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends netcat-openbsd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+USER jenkins
+
