@@ -13,44 +13,51 @@ services:
       - jenkins-net
 
   jenkins-agent-1:
-    build:
-      context: .
-      dockerfile: Dockerfile.agent
+    image: jenkins/inbound-agent:latest-jdk17
     container_name: jenkins-agent-01
     depends_on:
-      - jenkins-master
+      jenkins-master:
+        condition: service_started
     environment:
       - JENKINS_URL=${JENKINS_URL}
       - JENKINS_AGENT_NAME=${JENKINS_AGENT_NAME01}
       - JENKINS_SECRET=${JENKINS_SECRET_AGENT01}
     entrypoint:
-      - sh
-      - -c
-      - |
-        while ! nc -z jenkins-master 8080; do echo Waiting for Jenkins master...; sleep 5; done;
-        echo 'Sleeping extra 30 sec to allow Jenkins plugins to load...'; sleep 30;
-        java -jar /usr/share/jenkins/agent.jar -url "$JENKINS_URL" -secret "$JENKINS_SECRET" -name "$JENKINS_AGENT_NAME" -webSocket -workDir /home/jenkins/agent
+      - java
+      - -jar
+      - /usr/share/jenkins/agent.jar
+      - -url
+      - "$JENKINS_URL"
+      - -secret
+      - "$JENKINS_SECRET_AGENT01"
+      - -name
+      - "$JENKINS_AGENT_NAME01"
+      - -workDir
+      - "/home/jenkins/agent"
     networks:
       - jenkins-net
-
   jenkins-agent-2:
-    build:
-      context: .
-      dockerfile: Dockerfile.agent
+    image: jenkins/inbound-agent:latest-jdk17
     container_name: jenkins-agent-02
     depends_on:
-      - jenkins-master
+      jenkins-master:
+        condition: service_started
     environment:
       - JENKINS_URL=${JENKINS_URL}
       - JENKINS_AGENT_NAME=${JENKINS_AGENT_NAME02}
       - JENKINS_SECRET=${JENKINS_SECRET_AGENT02}
     entrypoint:
-      - sh
-      - -c
-      - |
-        while ! nc -z jenkins-master 8080; do echo Waiting for Jenkins master...; sleep 5; done;
-        echo 'Sleeping extra 30 sec to allow Jenkins plugins to load...'; sleep 30;
-        java -jar /usr/share/jenkins/agent.jar -url "$JENKINS_URL" -secret "$JENKINS_SECRET" -name "$JENKINS_AGENT_NAME" -webSocket -workDir /home/jenkins/agent
+      - java
+      - -jar
+      - /usr/share/jenkins/agent.jar
+      - -url
+      - "$JENKINS_URL"
+      - -secret
+      - "$JENKINS_SECRET_AGENT02"
+      - -name
+      - "$JENKINS_AGENT_NAME02"
+      - -workDir
+      - "/home/jenkins/agent"
     networks:
       - jenkins-net
 
