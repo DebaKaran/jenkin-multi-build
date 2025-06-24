@@ -164,6 +164,7 @@ C: Safe practice for dev systems
 D: For production → use Jenkins Credentials Plugin (advanced)
 
 #### Agent container log: sh: 1: nc: not found
+
 Problem:
 
 Agent container logs showed: sh: 1: nc: not found
@@ -179,15 +180,82 @@ We created a small Dockerfile.agent to install nc:
 Dockerfile.agent
 
 # Dockerfile.agent
+
 FROM jenkins/inbound-agent:latest-jdk17
 
 USER root
 
 # Install netcat-openbsd (because "netcat" fails now in Debian images)
+
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends netcat-openbsd \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ && apt-get install -y --no-install-recommends netcat-openbsd \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/\*
 
 USER jenkins
 
+####Jenkins Multi-Agent Setup with Docker Compose
+
+This project shows how to run a Jenkins controller with one or more agents using `docker-compose`.
+
+✅ Supports:
+
+- Jenkins controller (`jenkins/jenkins:lts-jdk17`)
+- Jenkins agents (`jenkins/inbound-agent:latest-jdk17`)
+- Auto-connect agents via JNLP with secret tokens
+- Easily add more agents via `.env` file and `docker-compose.yaml`
+
+---
+
+## .env File (Example)
+
+```env
+# Jenkins Controller URL
+JENKINS_URL=http://jenkins-master:8080/
+
+# Agent 01 secret & name
+JENKINS_SECRET_AGENT01=<your-agent-01-secret>
+JENKINS_AGENT_NAME01=agent-01
+
+# Agent 02 secret & name (optional)
+JENKINS_SECRET_AGENT02=<your-agent-02-secret>
+JENKINS_AGENT_NAME02=agent-02
+
+```
+
+You can find the agent secret in:
+
+Manage Jenkins → Nodes → agent-01 → Configure → Agent Secret
+
+How to Run
+1️: Build & Start: docker compose --env-file .env up --build -d
+2: Stop: docker compose down
+
+How to Add More Agents
+1️: In docker-compose.yaml, copy/paste and update service:
+
+jenkins-agent-2:
+container_name: jenkins-agent-02
+image: jenkins/inbound-agent:latest-jdk17
+networks: - jenkins-net
+depends_on:
+jenkins-master:
+condition: service_started
+entrypoint: - java - -jar - /usr/share/jenkins/agent.jar - -url - "$JENKINS_URL"
+      - -secret
+      - "$JENKINS_SECRET_AGENT02" - -name - "$JENKINS_AGENT_NAME02" - -workDir - "/home/jenkins/agent"
+
+2️: In .env, add secret + name for the agent:
+
+JENKINS_SECRET_AGENT02=xxx
+JENKINS_AGENT_NAME02=agent-02
+
+3️⃣ Redeploy: docker compose --env-file .env up --build -d
+
+Assign Labels to Agents:
+
+Go to:
+
+Manage Jenkins → Nodes → agent-01 → Configure → Labels
+
+Example: docker linux
