@@ -261,3 +261,45 @@ Manage Jenkins → Nodes → agent-01 → Configure → Labels
 Example: docker linux
 
 #######
+⚠️ Issue: docker-compose Not Found in Jenkins Agent
+When running a Jenkins pipeline that uses Docker Compose, you might encounter the following error in Jenkins:
+
+docker-compose: not found
+
+Root Cause:
+
+Even though /var/run/docker.sock is mounted into the Jenkins agent container (giving it access to the Docker daemon), the agent container does not include the docker-compose CLI tool by default.
+
+The Docker socket allows the agent to communicate with Docker, but it still needs the docker-compose binary to run Compose commands like docker-compose up.
+
+Solution: Add docker-compose to Jenkins Agent
+
+To resolve this:
+
+1: Create a custom Dockerfile for Jenkins agents that installs docker-compose.
+
+2: Update your docker-compose.yml to build the agents using this Dockerfile.
+
+Step 1: Create Dockerfile.agent-with-compose
+
+# Dockerfile.agent-with-compose
+FROM jenkins/inbound-agent:latest-jdk17
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose
+
+USER jenkins
+
+## Update the Docker Compose version if needed: https://github.com/docker/compose/releases
+2: Step 2: Modify your Jenkins agent service in docker-compose.yml
+jenkins-agent-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent-with-compose
+
+Similarly for other agents.
+

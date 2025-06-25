@@ -13,7 +13,9 @@ services:
       - jenkins-net
 
   jenkins-agent-1:
-    image: jenkins/inbound-agent:latest-jdk17
+    build:
+      context: .
+      dockerfile: Dockerfile.agent-with-compose
     container_name: jenkins-agent-01
     depends_on:
       jenkins-master:
@@ -39,7 +41,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
   jenkins-agent-2:
-    image: jenkins/inbound-agent:latest-jdk17
+    build:
+      context: .
+      dockerfile: Dockerfile.agent-with-compose
     container_name: jenkins-agent-02
     depends_on:
       jenkins-master:
