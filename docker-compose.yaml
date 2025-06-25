@@ -36,6 +36,8 @@ services:
       - "/home/jenkins/agent"
     networks:
       - jenkins-net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
   jenkins-agent-2:
     image: jenkins/inbound-agent:latest-jdk17
     container_name: jenkins-agent-02
@@ -60,6 +62,8 @@ services:
       - "/home/jenkins/agent"
     networks:
       - jenkins-net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Enables docker CLI in agent
 
 volumes:
   jenkins_home:
