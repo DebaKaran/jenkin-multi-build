@@ -11,6 +11,7 @@ services:
       - jenkins_home:/var/jenkins_home
     networks:
       - jenkins-net
+    restart: always
 
   jenkins-agent-1:
     build:
