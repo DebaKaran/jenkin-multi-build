@@ -283,23 +283,129 @@ To resolve this:
 Step 1: Create Dockerfile.agent-with-compose
 
 # Dockerfile.agent-with-compose
+
 FROM jenkins/inbound-agent:latest-jdk17
 
 USER root
 
 RUN apt-get update && \
-    apt-get install -y curl && \
-    curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
-    chmod +x /usr/local/bin/docker-compose
+ apt-get install -y curl && \
+ curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
+ chmod +x /usr/local/bin/docker-compose
 
 USER jenkins
 
 ## Update the Docker Compose version if needed: https://github.com/docker/compose/releases
+
 2: Step 2: Modify your Jenkins agent service in docker-compose.yml
 jenkins-agent-1:
-    build:
-      context: .
-      dockerfile: Dockerfile.agent-with-compose
+build:
+context: .
+dockerfile: Dockerfile.agent-with-compose
 
 Similarly for other agents.
 
+### The Problem
+
+When running docker commands from Jenkins agents (inside containers), you might encounter this error:
+
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock
+
+⚠️ Why It Happens:
+
+A: The host's /var/run/docker.sock is mounted into the container.
+
+B: The socket is owned by a group (usually docker) with a dynamic GID like 1001, 998, or even 0.
+
+C: Inside the agent container, if the jenkins user is not part of the same GID group, it cannot access the socket → results in permission denied.
+
+🚫 Common (But Inflexible) Fixes
+
+A: Hardcoding DOCKER_GID=1001 in .env and Dockerfile
+
+B: Using usermod -aG docker jenkins with a fixed group
+
+C: Manually checking and editing GID each time
+
+These break if GID changes on a new system or reboot.
+
+✅ Final Working Approach:
+
+We solved the problem dynamically and robustly using these steps:
+
+1. Removed DOCKER_GID from .env and Dockerfile
+
+No more relying on fixed group IDs.
+
+2. Added entrypoint.sh to dynamically match host GID
+   Dockerfile.agent-with-compose:
+
+FROM jenkins/inbound-agent:latest-jdk17
+
+USER root
+
+RUN apt-get update && \
+ apt-get install -y curl docker.io && \
+ curl -L "https://github.com/docker/compose/releases/download/v2.37.3/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
+ chmod +x /usr/local/bin/docker-compose
+
+# Copy custom entrypoint script
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+USER jenkins
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+3. entrypoint.sh – automatic GID matching
+
+#!/bin/bash
+
+set -e
+
+DOCKER_SOCK="/var/run/docker.sock"
+DOCKER_GID=$(stat -c '%g' $DOCKER_SOCK)
+
+if ! getent group docker >/dev/null; then
+echo "[INFO] Creating 'docker' group with GID $DOCKER_GID"
+  sudo groupadd -g "$DOCKER_GID" docker || true
+fi
+
+echo "[INFO] Adding 'jenkins' user to 'docker' group"
+sudo usermod -aG docker jenkins || true
+
+echo "[INFO] Starting Jenkins agent..."
+exec java -jar /usr/share/jenkins/agent.jar "$@"
+
+✅ This script runs inside the container before Jenkins agent starts. It reads the real GID of /var/run/docker.sock, creates a matching group if needed, and adds jenkins to it.
+
+4. 🔁 Used in docker-compose.yaml
+
+jenkins-agent-1:
+build:
+context: .
+dockerfile: Dockerfile.agent-with-compose
+...
+volumes: - /var/run/docker.sock:/var/run/docker.sock
+
+✅ Verification
+Run from inside agent container:
+
+$ whoami
+jenkins
+
+$ groups
+jenkins docker
+
+$ docker ps
+CONTAINER ID IMAGE ... STATUS ...
+
+🎉 No more permission errors! Agent can now run Docker builds, tests, or deploy steps.
+
+Security Notes:
+
+1: Do not expose Docker socket to untrusted containers.
+
+2: This setup is safe within a trusted CI/CD pipeline.
+
+3: For production: consider using a remote Docker daemon or docker-in-docker alternatives like kaniko.
