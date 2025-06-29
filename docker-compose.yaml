@@ -16,6 +16,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.agent-with-compose
+      args:
+        DOCKER_GID: ${DOCKER_GID}
     container_name: jenkins-agent-01
     depends_on:
       jenkins-master:
@@ -44,6 +46,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.agent-with-compose
+      args:
+        DOCKER_GID: ${DOCKER_GID}
     container_name: jenkins-agent-02
     depends_on:
       jenkins-master:
