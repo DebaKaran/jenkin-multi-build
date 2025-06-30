@@ -409,3 +409,50 @@ Security Notes:
 2: This setup is safe within a trusted CI/CD pipeline.
 
 3: For production: consider using a remote Docker daemon or docker-in-docker alternatives like kaniko.
+
+### Problem: Duplicate Image Builds
+
+When both `jenkins-agent-1` and `jenkins-agent-2` services have a `build:` section (even if using the same Dockerfile), running: docker compose --env-file .env build --no-cache
+
+results in two separate image builds, even though the builds are identical.
+
+Why this is bad:
+
+A: Wastes disk space
+
+B: Slows down build process
+
+C: Causes unnecessary duplication of Docker images
+
+Solution: Use a Shared Image Tag (Option 1)
+
+Strategy:
+
+A: Build the agent image once (with jenkins-agent-1)
+
+B: Assign a custom image name: jenkins-agent:custom
+
+C: Make other agents (like jenkins-agent-2) reuse the same image via the image: directive
+
+Build Image Once: docker compose --env-file .env build jenkins-agent-1
+
+Or alternatively (if not using Compose for build):
+
+docker build -t jenkins-agent:custom -f Dockerfile.agent-with-compose .
+
+Start the Jenkins stack: docker compose --env-file .env up -d
+
+docker-compose.yml Snippet (Simplified)
+
+jenkins-agent-1:
+build:
+context: .
+dockerfile: Dockerfile.agent-with-compose
+args:
+DOCKER_GID: ${DOCKER_GID}
+image: jenkins-agent:custom
+...
+
+jenkins-agent-2:
+image: jenkins-agent:custom
+...
