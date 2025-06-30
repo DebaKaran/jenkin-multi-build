@@ -456,3 +456,38 @@ image: jenkins-agent:custom
 jenkins-agent-2:
 image: jenkins-agent:custom
 ...
+
+The `Dockerfile.agent-with-compose` file defines a Jenkins agent image that includes:
+
+- Docker CLI
+- Docker Compose
+- Node.js (v20) and npm (for running frontend/backend build steps)
+
+This agent enables Jenkins to:
+
+- Build and run Docker containers via Docker Compose
+- Run JavaScript/Node.js commands such as `npm install` or `npm run build` in the pipeline
+- Support frontend/backend projects written in JavaScript (e.g., React or Node.js apps)
+
+### Build the Custom Agent Image
+
+```bash
+docker-compose --env-file .env build --no-cache jenkins-agent-1
+```
+Why Node.js Is Needed
+In pipelines where Jenkins builds frontend or backend projects using npm, the agent must have Node.js and npm installed. Without these, stages like:
+
+sh 'npm install'
+sh 'npm run build'
+
+will fail with npm: not found.
+
+Base Image Used
+We start from jenkins/inbound-agent:latest-jdk17, and then install:
+
+1: Docker CLI
+
+2: Docker Compose (v2.37.3)
+
+3: Node.js 20.x via NodeSource
+
